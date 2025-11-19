@@ -48,8 +48,7 @@ def draw_results(frame, results, fps, config):
             label = f"{confidence:.2f}"
             cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color, thickness)
 
-    # Hiển thị FPS (nếu cần vẽ trực tiếp lên frame, nhưng yêu cầu là hiển thị trên UI)
-    # Tuy nhiên, vẽ lên frame cũng tốt cho debug hoặc recording
+    # Hiển thị FPS (nếu cần vẽ trực tiếp lên frame)
     # cv2.putText(frame, f"FPS: {fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
     
     return frame

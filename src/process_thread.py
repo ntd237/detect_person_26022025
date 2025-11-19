@@ -68,10 +68,10 @@ class ThreadProcess(QThread):
                 with torch.inference_mode():
                     results = self.model(frame, device=self.device, classes=self.target_classes, conf=self.conf_threshold, verbose=False)
                 
-                # Gửi kết quả đi (frame gốc + results)
+                # Gửi kết quả (frame gốc + results)
                 self.processed_results.emit(frame, results, fps)
             else:
-                # Ngủ ngắn để tránh chiếm dụng CPU khi không có frame
+                # Sleep ngắn để tránh chiếm dụng CPU khi không có frame
                 time.sleep(0.001)
 
     def stop(self):

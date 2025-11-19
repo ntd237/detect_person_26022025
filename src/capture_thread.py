@@ -46,7 +46,7 @@ class ThreadCapture(QThread):
             self.new_frame.emit(frame)
             
             elapsed_time = time.time() - start_time
-            # Tính toán thời gian ngủ để duy trì FPS ổn định
+            # Tính toán thời gian sleep để duy trì FPS ổn định
             sleep_time = max(0, (1.0 / self.target_fps) - elapsed_time)
             time.sleep(sleep_time)
             

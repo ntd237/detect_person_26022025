@@ -2,7 +2,7 @@ app:
   name: "YOLOv8 Multi-thread Detection"
   width: 1200
   height: 800
-  fps_update_interval: 1  # Cập nhật FPS mỗi giây (giây)
+  fps_update_interval: 1  # Cập nhật FPS mỗi giây
 
 video:
   path: "resources/videos/test.mp4"
