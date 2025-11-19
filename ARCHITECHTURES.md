@@ -29,7 +29,7 @@ Dự án áp dụng kiến trúc **Multi-threading** (Đa luồng) kết hợp v
 ```mermaid
 graph TB
     subgraph "User Interface Layer (Main Thread)"
-        UI[MainWindow (PyQt5)]
+        UI["MainWindow (PyQt5)"]
         View[QGraphicsView]
     end
     
@@ -44,7 +44,7 @@ graph TB
     end
     
     subgraph "External Resources"
-        Video[Video Source/Camera]
+        Video["Video Source/Camera"]
         Model[YOLOv8 Model]
     end
     
@@ -158,7 +158,7 @@ sequenceDiagram
 ```mermaid
 graph LR
     subgraph "Input Stage"
-        Raw[Video/Camera] --> Read[cv2.read()]
+        Raw["Video/Camera"] --> Read["cv2.read()"]
     end
     
     subgraph "Preprocessing Stage"
