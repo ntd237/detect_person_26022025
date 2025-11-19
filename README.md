@@ -63,6 +63,40 @@ Dự án này áp dụng kiến trúc **Multi-threading** (Đa luồng) để gi
 
 ---
 
+## 🏗️ Kiến Trúc Hệ Thống
+
+Biểu đồ dưới đây mô tả luồng dữ liệu (Data Flow) giữa các thread trong ứng dụng:
+
+```mermaid
+graph TD
+    subgraph Input [Input Source]
+        Video[🎥 Video File / Camera]
+    end
+
+    subgraph Threads [Multi-threaded Processing]
+        direction TB
+        Capture(⚡ Capture Thread)
+        Process(🧠 Process Thread<br/>YOLOv8 Inference)
+        Stream(🎨 Stream Thread<br/>Draw BBox & Overlay)
+    end
+
+    subgraph Output [Main Thread]
+        GUI[🖥️ PyQt5 GUI<br/>Display Image]
+    end
+
+    Video -->|Read Frame| Capture
+    Capture -->|Signal: new_frame| Process
+    Process -->|Signal: processed_results| Stream
+    Stream -->|Signal: update_image| GUI
+
+    style Capture fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style Process fill:#fff3e0,stroke:#ff6f00,stroke-width:2px
+    style Stream fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style GUI fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+```
+
+---
+
 ## 💻 Yêu Cầu Hệ Thống
 
 ### Phần Cứng
