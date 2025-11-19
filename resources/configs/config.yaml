@@ -1,0 +1,21 @@
+app:
+  name: "YOLOv8 Multi-thread Detection"
+  width: 1200
+  height: 800
+  fps_update_interval: 1  # Cập nhật FPS mỗi giây (giây)
+
+video:
+  path: "resources/videos/test.mp4"
+  target_fps: 30
+
+model:
+  path: "resources/models/yolov8m.pt"
+  device: "cuda"  # hoặc "cpu"
+  confidence_threshold: 0.5
+  classes: [0]  # 0 là class 'person' trong COCO dataset
+
+display:
+  bbox_color: [0, 255, 0]  # BGR
+  text_color: [0, 255, 0]  # BGR
+  text_thickness: 2
+  box_thickness: 2
