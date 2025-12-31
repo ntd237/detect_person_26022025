@@ -28,7 +28,8 @@ class ThreadProcess(QThread):
         
         # Khởi tạo model
         self.model = YOLO(self.model_path)
-        self.model.to(self.device)
+        if self.model_path.endswith(".pt"):
+            self.model.to(self.device)
         
         self.running = True
         self.frame_queue = queue.Queue(maxsize=5)  # Giới hạn queue để tránh lag

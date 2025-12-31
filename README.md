@@ -60,6 +60,7 @@ Dự án này áp dụng kiến trúc **Multi-threading** (Đa luồng) để gi
 - ⚙️ **Configurable**: Dễ dàng tùy chỉnh tham số qua file YAML (model path, video source, threshold, colors...).
 - 🖥️ **GPU Acceleration**: Hỗ trợ chạy trên NVIDIA GPU (CUDA) để đạt hiệu năng tối đa.
 - 🔄 **Queue Management**: Cơ chế hàng đợi (Queue) thông minh giúp đồng bộ hóa dữ liệu giữa các luồng mà không gây tắc nghẽn.
+- 📐 **Polygon Zone Detection**: Tính năng vẽ vùng quan tâm (ROI) đa giác. Chỉ nhận diện đối tượng nằm trong vùng này, giúp tập trung giám sát và giảm nhiễu.
 
 ---
 
@@ -116,6 +117,7 @@ ultralytics>=8.0.0
 opencv-python>=4.8.0
 PyYAML>=6.0
 torch>=2.0.0
+numpy>=1.24.0
 ```
 
 ---
@@ -165,6 +167,17 @@ python main.py
 Mở file `resources/configs/config.yaml` để chỉnh sửa:
 - Thay đổi `video.path` để đổi nguồn video (hoặc dùng `0` cho webcam).
 - Thay đổi `model.device` thành `cpu` nếu máy không có GPU rời.
+- Đặt `polygon.enabled: true` để bật chế độ vẽ vùng giám sát.
+
+### Tính Năng Vẽ Polygon (New)
+Khi `polygon.enabled: true` được thiết lập trong config:
+1. Khi khởi động, cửa sổ **Vẽ Polygon** sẽ hiện lên với frame đầu tiên của video.
+2. **Thao tác**:
+   - **Click Chuột Trái**: Thêm điểm vào đa giác.
+   - **Click Chuột Phải** hoặc **Enter**: Hoàn thành và bắt đầu nhận diện.
+   - **Phím C**: Xóa toàn bộ điểm để vẽ lại.
+   - **Phím Esc**: Hủy bỏ và thoát ứng dụng.
+3. Ứng dụng sẽ chỉ hiển thị và nhận diện người có tâm nằm trong vùng đa giác đã vẽ.
 
 ---
 
@@ -181,6 +194,7 @@ detect_person_26022025/
 │   ├── capture_thread.py     # Luồng đọc video
 │   ├── process_thread.py     # Luồng xử lý AI (YOLOv8)
 │   ├── stream_thread.py      # Luồng hiển thị hình ảnh
+│   ├── polygon_drawer.py     # [NEW] Giao diện vẽ polygon
 │   └── utils.py              # Các hàm tiện ích (load config, draw...)
 └── resources/                # Tài nguyên dự án
     ├── configs/
@@ -205,7 +219,7 @@ app:
   fps_update_interval: 1
 
 video:
-  path: "resources/videos/test.mp4" # Đường dẫn video hoặc ID camera (0)
+  path: "resources/videos/test.mp4" # Đường dẫn video, ID camera (0), hoặc RTSP URL
   target_fps: 30
 
 model:
@@ -219,7 +233,22 @@ display:
   text_color: [0, 255, 0]
   text_thickness: 2
   box_thickness: 2
+
+polygon:
+  enabled: true             # Bật/tắt tính năng vẽ polygon
+  line_color: [0, 255, 255] # Màu đường viền (Yellow)
+  line_thickness: 2
+  fill_alpha: 0.2           # Độ đậm màu nền (0.0 - 1.0)
 ```
+
+---
+
+## 📝 Changelog
+
+### Version 1.1.0 (Current)
+- ✨ **New Feature**: Thêm tính năng **Polygon Detection**. Cho phép người dùng vẽ vùng đa giác tùy ý để giới hạn phạm vi nhận diện.
+- 🔧 **Update**: Tối ưu hóa Config file, thêm các tùy chọn hiển thị cho Polygon.
+- 🐛 **Fix**: Cải thiện logic xử lý đa luồng.
 
 ---
 

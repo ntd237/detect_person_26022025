@@ -21,6 +21,16 @@ class ThreadStream(QThread):
         super().__init__()
         self.config = config
         self.running = True
+        self.polygon_points = None  # Danh sách điểm polygon (nếu có)
+
+    def set_polygon(self, polygon_points):
+        """
+        Thiết lập polygon để filter detection.
+        
+        Args:
+            polygon_points (list): Danh sách các điểm polygon [(x, y), ...].
+        """
+        self.polygon_points = polygon_points
 
     def display_frame(self, frame, results, fps):
         """
@@ -29,8 +39,8 @@ class ThreadStream(QThread):
         if not self.running:
             return
 
-        # Vẽ bounding box và thông tin
-        frame = draw_results(frame, results, fps, self.config)
+        # Vẽ bounding box và thông tin (có polygon filter nếu được set)
+        frame = draw_results(frame, results, fps, self.config, self.polygon_points)
 
         # Chuyển đổi BGR sang RGB
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
