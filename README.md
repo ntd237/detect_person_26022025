@@ -58,9 +58,11 @@ Dự án này áp dụng kiến trúc **Multi-threading** (Đa luồng) để gi
 
 ### Advanced Features
 - ⚙️ **Configurable**: Dễ dàng tùy chỉnh tham số qua file YAML (model path, video source, threshold, colors...).
+- 🔧 **Custom Model Support**: Hỗ trợ sử dụng custom trained YOLOv8 models với input size tùy chỉnh (640, 896, 1024...).
 - 🖥️ **GPU Acceleration**: Hỗ trợ chạy trên NVIDIA GPU (CUDA) để đạt hiệu năng tối đa.
 - 🔄 **Queue Management**: Cơ chế hàng đợi (Queue) thông minh giúp đồng bộ hóa dữ liệu giữa các luồng mà không gây tắc nghẽn.
 - 📐 **Polygon Zone Detection**: Tính năng vẽ vùng quan tâm (ROI) đa giác. Chỉ nhận diện đối tượng nằm trong vùng này, giúp tập trung giám sát và giảm nhiễu.
+- 🎯 **Flexible Input Size**: Điều chỉnh input size của model (640, 896, 1024...) để cân bằng giữa độ chính xác và tốc độ.
 
 ---
 
@@ -150,8 +152,11 @@ pip install -r requirements.txt
 ```
 
 ### Bước 4: Chuẩn bị Model và Video
-- Đảm bảo file model `yolov8m.pt` nằm trong thư mục `resources/models/` (Ultralytics sẽ tự tải nếu chưa có, nhưng tốt nhất nên chuẩn bị trước).
-- Đặt video cần test vào `resources/videos/` hoặc cập nhật đường dẫn trong config.
+- **Model**: Có thể sử dụng pretrained YOLOv8 models (yolov8n/s/m/l/x.pt) hoặc custom trained model:
+  - Ultralytics sẽ tự tải pretrained models nếu chưa có
+  - Đối với custom model, đặt file `.pt` vào `resources/models/` và cập nhật `model.path` trong config
+  - Lưu ý điều chỉnh `model.input_size` phù hợp với model đã train
+- **Video**: Đặt video test vào `resources/videos/` hoặc cập nhật `video.path` trong config (hỗ trợ video file, webcam, RTSP stream).
 
 ---
 
@@ -165,8 +170,11 @@ python main.py
 
 ### Cấu Hình Nhanh
 Mở file `resources/configs/config.yaml` để chỉnh sửa:
-- Thay đổi `video.path` để đổi nguồn video (hoặc dùng `0` cho webcam).
+- Thay đổi `video.path` để đổi nguồn video (file path, `0` cho webcam, hoặc RTSP URL).
+- Thay đổi `model.path` để sử dụng model khác (pretrained hoặc custom).
+- Điều chỉnh `model.input_size` phù hợp với model (640 cho pretrained, 896/1024 cho custom).
 - Thay đổi `model.device` thành `cpu` nếu máy không có GPU rời.
+- Điều chỉnh `model.confidence_threshold` để cân bằng precision/recall.
 - Đặt `polygon.enabled: true` để bật chế độ vẽ vùng giám sát.
 
 ### Tính Năng Vẽ Polygon (New)
@@ -223,10 +231,12 @@ video:
   target_fps: 30
 
 model:
-  path: "resources/models/yolov8m.pt"
-  device: "cuda"  # "cuda" cho GPU hoặc "cpu"
-  confidence_threshold: 0.5
-  classes: [0]  # Class ID của COCO dataset (0 = person)
+  path: "resources/models/yolov8m.pt"           # Pretrained model
+  # path: "resources/models/last_896_yolov8s.pt"  # Custom trained model example
+  device: "cuda"                                 # "cuda" cho GPU hoặc "cpu"
+  input_size: 640                                # Kích thước đầu vào (640, 896, 1024...)
+  confidence_threshold: 0.5                      # Ngưỡng confidence (0.0-1.0)
+  classes: [0]                                   # Class ID của COCO dataset (0 = person)
 
 display:
   bbox_color: [0, 255, 0]
@@ -245,7 +255,13 @@ polygon:
 
 ## 📝 Changelog
 
-### Version 1.1.0 (Current)
+### Version 1.2.0 (Current) - 2026-01-07
+- ✨ **New Feature**: Hỗ trợ custom trained YOLOv8 models với input size tùy chỉnh.
+- 🔧 **Update**: Thêm tham số `input_size` vào config để điều chỉnh kích thước đầu vào model (640, 896, 1024...).
+- 📖 **Documentation**: Cập nhật README với hướng dẫn chi tiết sử dụng custom models.
+- 🎯 **Enhancement**: Cải thiện flexibility cho việc deploy models với input size khác nhau.
+
+### Version 1.1.0 - 2026-01-05
 - ✨ **New Feature**: Thêm tính năng **Polygon Detection**. Cho phép người dùng vẽ vùng đa giác tùy ý để giới hạn phạm vi nhận diện.
 - 🔧 **Update**: Tối ưu hóa Config file, thêm các tùy chọn hiển thị cho Polygon.
 - 🐛 **Fix**: Cải thiện logic xử lý đa luồng.

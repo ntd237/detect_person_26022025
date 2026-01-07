@@ -24,6 +24,7 @@ class ThreadProcess(QThread):
         self.model_path = config['model']['path']
         self.conf_threshold = config['model']['confidence_threshold']
         self.target_classes = config['model']['classes']
+        self.input_size = config['model'].get('input_size', 640)  # Lấy input_size từ config, mặc định 640
         self.device = config['model']['device'] if torch.cuda.is_available() else "cpu"
         
         # Khởi tạo model
@@ -67,7 +68,7 @@ class ThreadProcess(QThread):
                 
                 # Inference
                 with torch.inference_mode():
-                    results = self.model(frame, device=self.device, classes=self.target_classes, conf=self.conf_threshold, verbose=False)
+                    results = self.model(frame, device=self.device, classes=self.target_classes, conf=self.conf_threshold, imgsz=self.input_size, verbose=False)
                 
                 # Gửi kết quả (frame gốc + results)
                 self.processed_results.emit(frame, results, fps)
