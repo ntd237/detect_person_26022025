@@ -43,6 +43,7 @@ Dự án này áp dụng kiến trúc **Multi-threading** (Đa luồng) để gi
 - **PyQt5**: Framework giao diện mạnh mẽ và linh hoạt.
 - **OpenCV**: Xử lý ảnh và video.
 - **PyTorch**: Deep Learning framework hỗ trợ CUDA.
+- **SAHI**: Slicing Aided Hyper Inference cho nhận diện đối tượng nhỏ.
 
 ---
 
@@ -55,6 +56,7 @@ Dự án này áp dụng kiến trúc **Multi-threading** (Đa luồng) để gi
   - **Process Thread**: Chạy AI inference độc lập.
   - **Stream Thread**: Hiển thị kết quả lên UI mượt mà.
 - 📊 **FPS Monitoring**: Theo dõi tốc độ xử lý thực tế ngay trên giao diện.
+- 🔍 **SAHI Integration**: Hỗ trợ Slicing Aided Hyper Inference giúp cải thiện đáng kể khả năng nhận diện đối tượng nhỏ trong ảnh độ phân giải cao.
 
 ### Advanced Features
 - ⚙️ **Configurable**: Dễ dàng tùy chỉnh tham số qua file YAML (model path, video source, threshold, colors...).
@@ -63,6 +65,7 @@ Dự án này áp dụng kiến trúc **Multi-threading** (Đa luồng) để gi
 - 🔄 **Queue Management**: Cơ chế hàng đợi (Queue) thông minh giúp đồng bộ hóa dữ liệu giữa các luồng mà không gây tắc nghẽn.
 - 📐 **Polygon Zone Detection**: Tính năng vẽ vùng quan tâm (ROI) đa giác. Chỉ nhận diện đối tượng nằm trong vùng này, giúp tập trung giám sát và giảm nhiễu.
 - 🎯 **Flexible Input Size**: Điều chỉnh input size của model (640, 896, 1024...) để cân bằng giữa độ chính xác và tốc độ.
+- 🧩 **Sliced Inference Control**: Tùy chỉnh số lượng slice (n_slices) và độ chồng lấn (overlap) để tối ưu hóa hiệu năng SAHI.
 
 ---
 
@@ -120,6 +123,9 @@ opencv-python>=4.8.0
 PyYAML>=6.0
 torch>=2.0.0
 numpy>=1.24.0
+sahi>=0.11.0 # (Sử dụng phiên bản tương thích với torch)
+pybboxes>=0.1.0 
+
 ```
 
 ---
@@ -176,6 +182,18 @@ Mở file `resources/configs/config.yaml` để chỉnh sửa:
 - Thay đổi `model.device` thành `cpu` nếu máy không có GPU rời.
 - Điều chỉnh `model.confidence_threshold` để cân bằng precision/recall.
 - Đặt `polygon.enabled: true` để bật chế độ vẽ vùng giám sát.
+- Đặt `sahi.enabled: true` để bật chế độ nhận diện đối tượng nhỏ (SAHI).
+
+### Cấu Hình SAHI
+Tùy chỉnh các tham số SAHI trong `config.yaml`:
+
+```yaml
+sahi:
+  enabled: true       # Bật/tắt SAHI
+  n_slices: 3         # Chia ảnh thành 3x3 (hoặc tùy tỷ lệ) slice
+  overlap: 0.2        # Tỷ lệ chồng lấn giữa các slice (20%)
+  iou_threshold: 0.5  # Ngưỡng NMS để gộp kết quả từ các slice
+```
 
 ### Tính Năng Vẽ Polygon (New)
 Khi `polygon.enabled: true` được thiết lập trong config:
@@ -202,7 +220,8 @@ detect_person_26022025/
 │   ├── capture_thread.py     # Luồng đọc video
 │   ├── process_thread.py     # Luồng xử lý AI (YOLOv8)
 │   ├── stream_thread.py      # Luồng hiển thị hình ảnh
-│   ├── polygon_drawer.py     # [NEW] Giao diện vẽ polygon
+│   ├── polygon_drawer.py     # Giao diện vẽ polygon
+│   ├── sahi_inference.py     # [NEW] Module xử lý SAHI (Sliced Inference)
 │   └── utils.py              # Các hàm tiện ích (load config, draw...)
 └── resources/                # Tài nguyên dự án
     ├── configs/

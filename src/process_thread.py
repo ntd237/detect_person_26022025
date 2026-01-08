@@ -8,6 +8,7 @@ from src.utils import draw_results
 class ThreadProcess(QThread):
     """
     Luồng xử lý AI (Inference).
+    Hỗ trợ cả inference thông thường và SAHI (Sliced Aided Hyper Inference).
     """
     # Tín hiệu gửi frame gốc, kết quả detection và FPS xử lý
     processed_results = pyqtSignal(object, object, float)
@@ -27,10 +28,30 @@ class ThreadProcess(QThread):
         self.input_size = config['model'].get('input_size', 640)  # Lấy input_size từ config, mặc định 640
         self.device = config['model']['device'] if torch.cuda.is_available() else "cpu"
         
-        # Khởi tạo model
-        self.model = YOLO(self.model_path)
-        if self.model_path.endswith(".pt"):
-            self.model.to(self.device)
+        # Kiểm tra SAHI mode
+        self.sahi_enabled = config.get('sahi', {}).get('enabled', False)
+        
+        if self.sahi_enabled:
+            # Khởi tạo SAHI wrapper
+            from src.sahi_inference import SAHIWrapper
+            sahi_config = config.get('sahi', {})
+            self.sahi_wrapper = SAHIWrapper(
+                model_path=self.model_path,
+                device=self.device,
+                conf_threshold=self.conf_threshold,
+                target_classes=self.target_classes,
+                imgsz=self.input_size,
+                sahi_config=sahi_config
+            )
+            self.model = None  # Không cần model YOLO trực tiếp
+            print("[ThreadProcess] SAHI mode ENABLED")
+        else:
+            # Khởi tạo model YOLO thông thường
+            self.model = YOLO(self.model_path)
+            if self.model_path.endswith(".pt"):
+                self.model.to(self.device)
+            self.sahi_wrapper = None
+            print("[ThreadProcess] Standard YOLO mode")
         
         self.running = True
         self.frame_queue = queue.Queue(maxsize=5)  # Giới hạn queue để tránh lag
@@ -66,9 +87,14 @@ class ThreadProcess(QThread):
                     fps = 1.0 / delta if delta > 0 else 0.0
                 self.prev_time = curr_time
                 
-                # Inference
-                with torch.inference_mode():
-                    results = self.model(frame, device=self.device, classes=self.target_classes, conf=self.conf_threshold, imgsz=self.input_size, verbose=False)
+                # Inference theo mode đã chọn
+                if self.sahi_enabled:
+                    # SAHI inference
+                    results = self.sahi_wrapper.predict(frame)
+                else:
+                    # Standard YOLO inference
+                    with torch.inference_mode():
+                        results = self.model(frame, device=self.device, classes=self.target_classes, conf=self.conf_threshold, imgsz=self.input_size, verbose=False)
                 
                 # Gửi kết quả (frame gốc + results)
                 self.processed_results.emit(frame, results, fps)
@@ -81,3 +107,4 @@ class ThreadProcess(QThread):
         self.running = False
         self.quit()
         self.wait()
+

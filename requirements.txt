@@ -4,3 +4,5 @@ opencv-python>=4.8.0
 PyYAML>=6.0
 torch>=2.0.0
 numpy>=1.24.0
+sahi==0.11.18
+pybboxes==0.1.6
