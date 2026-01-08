@@ -82,7 +82,15 @@ graph TD
     subgraph Threads [Multi-threaded Processing]
         direction TB
         Capture(⚡ Capture Thread)
-        Process(🧠 Process Thread<br/>YOLOv8 Inference)
+        
+        subgraph Process_Logic [Process Thread]
+            direction TB
+            InputQueue(📥 Frame Queue)
+            CheckMode{SAHI Enabled?}
+            YOLO[🚀 Standard YOLO]
+            SAHI[🔍 SAHI Slices]
+        end
+        
         Stream(🎨 Stream Thread<br/>Draw BBox & Overlay)
     end
 
@@ -91,14 +99,21 @@ graph TD
     end
 
     Video -->|Read Frame| Capture
-    Capture -->|Signal: new_frame| Process
-    Process -->|Signal: processed_results| Stream
+    Capture -->|Put Frame| InputQueue
+    InputQueue -->|Get Frame| CheckMode
+    CheckMode -->|Yes| SAHI
+    CheckMode -->|No| YOLO
+    SAHI -->|Results| Stream
+    YOLO -->|Results| Stream
     Stream -->|Signal: update_image| GUI
 
     style Capture fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    style Process fill:#fff3e0,stroke:#ff6f00,stroke-width:2px
     style Stream fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
     style GUI fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style CheckMode fill:#fff9c4,stroke:#fbc02d,stroke-width:2px
+    style SAHI fill:#fff3e0,stroke:#ff6f00,stroke-width:2px
+    style YOLO fill:#ffe0b2,stroke:#ef6c00,stroke-width:2px
+    style InputQueue fill:#eeeeee,stroke:#9e9e9e,stroke-width:1px,stroke-dasharray: 5 5
 ```
 
 ---
