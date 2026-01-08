@@ -1,9 +1,5 @@
 """
 SAHI - Slicing Aided Hyper Inference cho YOLO.
-
-Module này cung cấp SAHI class để thực hiện sliced inference,
-giúp phát hiện tốt hơn các object nhỏ trong ảnh có độ phân giải cao.
-Dựa trên logic từ draft/sahi.py.
 """
 
 import cv2
