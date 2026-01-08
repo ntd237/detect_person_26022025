@@ -236,7 +236,7 @@ detect_person_26022025/
 │   ├── process_thread.py     # Luồng xử lý AI (YOLOv8)
 │   ├── stream_thread.py      # Luồng hiển thị hình ảnh
 │   ├── polygon_drawer.py     # Giao diện vẽ polygon
-│   ├── sahi_inference.py     # [NEW] Module xử lý SAHI (Sliced Inference)
+│   ├── sahi_thread.py        # [NEW] Module xử lý SAHI (Sliced Inference)
 │   └── utils.py              # Các hàm tiện ích (load config, draw...)
 └── resources/                # Tài nguyên dự án
     ├── configs/

@@ -33,7 +33,7 @@ class ThreadProcess(QThread):
         
         if self.sahi_enabled:
             # Khởi tạo SAHI wrapper
-            from src.sahi_inference import SAHIWrapper
+            from src.sahi_thread import SAHIWrapper
             sahi_config = config.get('sahi', {})
             self.sahi_wrapper = SAHIWrapper(
                 model_path=self.model_path,
