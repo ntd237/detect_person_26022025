@@ -107,4 +107,3 @@ class ThreadProcess(QThread):
         self.running = False
         self.quit()
         self.wait()
-

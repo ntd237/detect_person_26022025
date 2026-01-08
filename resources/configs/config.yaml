@@ -10,7 +10,7 @@ video:
   target_fps: 30
 
 model:
-  path: resources/models/last_1280_yolov8m_epoch24.pt
+  path: resources/models/last_yolov8m_epoch30.pt
   # path: "resources/models/yolov8m.pt"  # model cũ
   device: "cuda"  
   input_size: 896
@@ -30,7 +30,9 @@ polygon:
   fill_alpha: 0.2  # Độ trong suốt vùng fill (0-1)
 
 sahi:
-  enabled: true              
-  n_slices: 3                
+  enabled: true           
+  n_slices: 4                
   overlap: 0.2                
-  iou_threshold: 0.5         
+  iou_threshold: 0.45        # Ngưỡng để merge box chồng lấn
+  use_ios: true              # Sử dụng IOS metric (tốt hơn IoU cho box bị cắt ở biên slice)
+  postprocess_type: nms      # "nms" (loại bỏ box) hoặc "nmm" (merge box)

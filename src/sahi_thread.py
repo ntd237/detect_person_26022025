@@ -93,17 +93,23 @@ class SAHI:
     """
     
     def __init__(self, model_path: str, conf: float = 0.25, iou: float = 0.45, 
-                 imgsz: int = 640, device: str = "cuda", target_classes: List[int] = None):
+                 imgsz: int = 640, device: str = "cuda", target_classes: List[int] = None,
+                 use_ios: bool = True, postprocess_type: str = "nmm"):
         """
         Khởi tạo SAHI.
         
         Args:
             model_path (str): Đường dẫn đến file model YOLO.
             conf (float): Ngưỡng confidence cho detection.
-            iou (float): Ngưỡng IOU cho NMS merge các slice.
+            iou (float): Ngưỡng IOU/IOS cho NMS/NMM merge các slice.
             imgsz (int): Kích thước input của model.
             device (str): Device để chạy inference ('cuda' hoặc 'cpu').
             target_classes (list): Danh sách class ID cần detect (None = tất cả).
+            use_ios (bool): Sử dụng IOS (Intersection Over Smallest) thay vì IoU.
+                           IOS hoạt động tốt hơn khi box bị cắt ở biên slice.
+            postprocess_type (str): Loại postprocess - "nms" hoặc "nmm".
+                           NMS: loại bỏ box chồng lấn, giữ box confidence cao nhất.
+                           NMM: merge các box chồng lấn thành 1 box lớn hơn.
         """
         self.model = YOLO(model_path)
         if model_path.endswith(".pt"):
@@ -113,8 +119,11 @@ class SAHI:
         self.imgsz = imgsz
         self.device = device
         self.target_classes = target_classes
+        self.use_ios = use_ios
+        self.postprocess_type = postprocess_type.lower()
         
-        print(f"[SAHI] Khởi tạo thành công - conf={conf}, iou={iou}, imgsz={imgsz}")
+        metric = "IOS" if use_ios else "IoU"
+        print(f"[SAHI] Khởi tạo thành công - conf={conf}, {metric}_thresh={iou}, imgsz={imgsz}, postprocess={self.postprocess_type.upper()}")
     
     def _get_slices(self, img_shape: Tuple[int, int], n_slices: int, 
                     overlap: float = 0.2) -> List[Tuple[int, int, int, int]]:
@@ -154,14 +163,15 @@ class SAHI:
         
         return slices
     
-    def _nms(self, boxes: np.ndarray, scores: np.ndarray, iou_thresh: float) -> np.ndarray:
+    def _nms(self, boxes: np.ndarray, scores: np.ndarray, threshold: float) -> np.ndarray:
         """
         Non-Maximum Suppression để loại bỏ duplicate detections.
+        Hỗ trợ cả IoU và IOS metric.
         
         Args:
             boxes (np.ndarray): Mảng các box (N, 4).
             scores (np.ndarray): Mảng confidence scores (N,).
-            iou_thresh (float): Ngưỡng IOU.
+            threshold (float): Ngưỡng IoU/IOS.
             
         Returns:
             np.ndarray: Indices của các box được giữ lại.
@@ -186,12 +196,104 @@ class SAHI:
             w = np.maximum(0, xx2 - xx1)
             h = np.maximum(0, yy2 - yy1)
             inter = w * h
-            iou = inter / (areas[i] + areas[order[1:]] - inter)
             
-            order = order[np.where(iou <= iou_thresh)[0] + 1]
+            if self.use_ios:
+                # IOS = Intersection Over Smallest
+                # Hiệu quả hơn khi box bị cắt ở biên slice (box nhỏ hơn sẽ bị merge)
+                min_areas = np.minimum(areas[i], areas[order[1:]])
+                overlap = inter / (min_areas + 1e-6)  # Tránh chia cho 0
+            else:
+                # IoU = Intersection Over Union (công thức gốc)
+                overlap = inter / (areas[i] + areas[order[1:]] - inter)
+            
+            # Sử dụng < để đảm bảo loại bỏ các box có overlap >= threshold
+            order = order[np.where(overlap < threshold)[0] + 1]
         
         return np.array(keep)
     
+    def _nmm(self, boxes: np.ndarray, scores: np.ndarray, threshold: float) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Non-Maximum Merging - merge các box chồng lấn thành 1 box lớn hơn.
+        Khác với NMS (loại bỏ), NMM sẽ gộp các box thành 1 box bao trọn.
+        
+        Args:
+            boxes (np.ndarray): Mảng các box (N, 4) định dạng [x1, y1, x2, y2].
+            scores (np.ndarray): Mảng confidence scores (N,).
+            threshold (float): Ngưỡng overlap để quyết định merge.
+            
+        Returns:
+            Tuple[np.ndarray, np.ndarray]: (merged_boxes, merged_scores)
+        """
+        if len(boxes) == 0:
+            return np.array([]).reshape(0, 4), np.array([])
+        
+        # Copy để không modify array gốc
+        boxes = boxes.copy()
+        scores = scores.copy()
+        
+        merged_boxes = []
+        merged_scores = []
+        
+        # Đánh dấu box đã được merge
+        used = np.zeros(len(boxes), dtype=bool)
+        
+        # Sắp xếp theo confidence giảm dần
+        order = scores.argsort()[::-1]
+        
+        for idx in order:
+            if used[idx]:
+                continue
+            
+            # Bắt đầu nhóm merge với box hiện tại
+            current_box = boxes[idx].copy()
+            current_scores = [scores[idx]]
+            used[idx] = True
+            
+            # Tìm tất cả box chưa dùng có overlap với current_box
+            for other_idx in order:
+                if used[other_idx]:
+                    continue
+                
+                other_box = boxes[other_idx]
+                
+                # Tính overlap (IOS hoặc IoU)
+                xx1 = max(current_box[0], other_box[0])
+                yy1 = max(current_box[1], other_box[1])
+                xx2 = min(current_box[2], other_box[2])
+                yy2 = min(current_box[3], other_box[3])
+                
+                w = max(0, xx2 - xx1)
+                h = max(0, yy2 - yy1)
+                inter = w * h
+                
+                area_current = (current_box[2] - current_box[0]) * (current_box[3] - current_box[1])
+                area_other = (other_box[2] - other_box[0]) * (other_box[3] - other_box[1])
+                
+                if self.use_ios:
+                    # IOS = Intersection Over Smallest
+                    min_area = min(area_current, area_other)
+                    overlap = inter / (min_area + 1e-6)
+                else:
+                    # IoU
+                    overlap = inter / (area_current + area_other - inter + 1e-6)
+                
+                if overlap >= threshold:
+                    # Merge: mở rộng current_box để bao trọn other_box
+                    current_box[0] = min(current_box[0], other_box[0])
+                    current_box[1] = min(current_box[1], other_box[1])
+                    current_box[2] = max(current_box[2], other_box[2])
+                    current_box[3] = max(current_box[3], other_box[3])
+                    current_scores.append(scores[other_idx])
+                    used[other_idx] = True
+            
+            merged_boxes.append(current_box)
+            # Confidence của box merged = trung bình các confidence
+            merged_scores.append(np.mean(current_scores))
+        
+        if not merged_boxes:
+            return np.array([]).reshape(0, 4), np.array([])
+        
+        return np.array(merged_boxes), np.array(merged_scores)
     def predict_raw(self, img: np.ndarray, n_slices: int = 2, 
                     overlap: float = 0.2) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
@@ -238,7 +340,7 @@ class SAHI:
         all_scores = np.concatenate(all_scores)
         all_classes = np.concatenate(all_classes)
         
-        # Áp dụng NMS theo từng class
+        # Áp dụng NMS hoặc NMM theo từng class dựa vào config
         unique_classes = np.unique(all_classes)
         final_boxes, final_scores, final_classes = [], [], []
         
@@ -247,11 +349,20 @@ class SAHI:
             cls_boxes = all_boxes[mask]
             cls_scores = all_scores[mask]
             
-            keep = self._nms(cls_boxes, cls_scores, self.iou)
-            if len(keep) > 0:
-                final_boxes.append(cls_boxes[keep])
-                final_scores.append(cls_scores[keep])
-                final_classes.append(np.full(len(keep), cls))
+            if self.postprocess_type == "nmm":
+                # Non-Maximum Merging: merge các box chồng lấn
+                merged_boxes, merged_scores = self._nmm(cls_boxes, cls_scores, self.iou)
+                if len(merged_boxes) > 0:
+                    final_boxes.append(merged_boxes)
+                    final_scores.append(merged_scores)
+                    final_classes.append(np.full(len(merged_boxes), cls))
+            else:
+                # Non-Maximum Suppression: loại bỏ box chồng lấn
+                keep = self._nms(cls_boxes, cls_scores, self.iou)
+                if len(keep) > 0:
+                    final_boxes.append(cls_boxes[keep])
+                    final_scores.append(cls_scores[keep])
+                    final_classes.append(np.full(len(keep), cls))
         
         if not final_boxes:
             return np.array([]), np.array([]), np.array([])
@@ -267,7 +378,7 @@ class SAHI:
             n_slices (int): Số lượng slice.
             overlap (float): Tỷ lệ overlap.
             
-        Returns:
+        # Returns:
             list: Kết quả detection theo format ultralytics.
         """
         boxes, scores, classes = self.predict_raw(img, n_slices, overlap)
@@ -304,7 +415,9 @@ class SAHIWrapper:
         # Lấy các tham số SAHI từ config
         self.n_slices = sahi_config.get('n_slices', 3)
         self.overlap = sahi_config.get('overlap', 0.2)
-        iou_threshold = sahi_config.get('iou_threshold', 0.5)
+        iou_threshold = sahi_config.get('iou_threshold', 0.45)
+        use_ios = sahi_config.get('use_ios', True)
+        postprocess_type = sahi_config.get('postprocess_type', 'nmm')  # nmm hoặc nms
         
         # Khởi tạo SAHI core
         self.sahi = SAHI(
@@ -313,10 +426,13 @@ class SAHIWrapper:
             iou=iou_threshold,
             imgsz=imgsz,
             device=device,
-            target_classes=target_classes
+            target_classes=target_classes,
+            use_ios=use_ios,
+            postprocess_type=postprocess_type
         )
         
-        print(f"[SAHIWrapper] Khởi tạo thành công với n_slices={self.n_slices}, overlap={self.overlap}")
+        metric = "IOS" if use_ios else "IoU"
+        print(f"[SAHIWrapper] Khởi tạo thành công với n_slices={self.n_slices}, overlap={self.overlap}, metric={metric}, postprocess={postprocess_type.upper()}")
     
     def predict(self, frame: np.ndarray) -> List:
         """

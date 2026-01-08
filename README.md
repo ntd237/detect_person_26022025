@@ -63,9 +63,11 @@ Dự án này áp dụng kiến trúc **Multi-threading** (Đa luồng) để gi
 - 🔧 **Custom Model Support**: Hỗ trợ sử dụng custom trained YOLOv8 models với input size tùy chỉnh (640, 896, 1024...).
 - 🖥️ **GPU Acceleration**: Hỗ trợ chạy trên NVIDIA GPU (CUDA) để đạt hiệu năng tối đa.
 - 🔄 **Queue Management**: Cơ chế hàng đợi (Queue) thông minh giúp đồng bộ hóa dữ liệu giữa các luồng mà không gây tắc nghẽn.
-- 📐 **Polygon Zone Detection**: Tính năng vẽ vùng quan tâm (ROI) đa giác. Chỉ nhận diện đối tượng nằm trong vùng này, giúp tập trung giám sát và giảm nhiễu.
+- 📐 **Polygon Zone Detection**: Tính năng vẽ vùng quan tâm (ROI) đa giác. Chỉ nhận diện đối tượng nằm trong vùng này.
 - 🎯 **Flexible Input Size**: Điều chỉnh input size của model (640, 896, 1024...) để cân bằng giữa độ chính xác và tốc độ.
 - 🧩 **Sliced Inference Control**: Tùy chỉnh số lượng slice (n_slices) và độ chồng lấn (overlap) để tối ưu hóa hiệu năng SAHI.
+- 🔀 **NMS/NMM Support**: Hỗ trợ cả Non-Maximum Suppression (loại bỏ box) và Non-Maximum Merging (gộp box) với config toggle.
+- 📏 **IOS Metric**: Sử dụng Intersection Over Smallest thay vì IoU để xử lý tốt hơn box bị cắt ở biên slice.
 
 ---
 
@@ -204,11 +206,31 @@ Tùy chỉnh các tham số SAHI trong `config.yaml`:
 
 ```yaml
 sahi:
-  enabled: true       # Bật/tắt SAHI
-  n_slices: 3         # Chia ảnh thành 3x3 (hoặc tùy tỷ lệ) slice
-  overlap: 0.2        # Tỷ lệ chồng lấn giữa các slice (20%)
-  iou_threshold: 0.5  # Ngưỡng NMS để gộp kết quả từ các slice
+  enabled: true            # Bật/tắt SAHI
+  n_slices: 4              # Số slice chia ảnh theo chiều dài hơn
+  overlap: 0.2             # Tỷ lệ chồng lấn giữa các slice (20%)
+  iou_threshold: 0.45      # Ngưỡng để merge/loại bỏ box chồng lấn
+  use_ios: true            # Sử dụng IOS metric (tốt hơn IoU cho box bị cắt ở biên)
+  postprocess_type: nmm    # "nms" (loại bỏ box) hoặc "nmm" (merge box)
 ```
+
+#### NMS vs NMM
+
+| Đặc điểm | NMS (Non-Maximum Suppression) | NMM (Non-Maximum Merging) |
+|----------|-------------------------------|---------------------------|
+| **Hành vi** | Loại bỏ box overlap, giữ box confidence cao nhất | Merge các box chồng lấn thành 1 box lớn hơn |
+| **Kết quả** | Số box giảm, kích thước giữ nguyên | Box lớn hơn bao trọn các box được merge |
+| **Use case** | Object không bị cắt ở biên slice | Object bị cắt ở biên slice (SAHI default) |
+| **Confidence** | Giữ nguyên của box tốt nhất | Trung bình các box được merge |
+
+#### IOS vs IoU
+
+| Metric | Mô tả | Use case |
+|--------|-------|----------|
+| **IoU** | Intersection / Union | Object có kích thước tương đương |
+| **IOS** | Intersection / Smallest Area | Box bị cắt nhỏ hơn (SAHI default) |
+
+> 💡 **Khuyến nghị**: Sử dụng `postprocess_type: nmm` và `use_ios: true` khi dùng SAHI để đạt kết quả tốt nhất với object bị cắt ở biên slice.
 
 ### Tính Năng Vẽ Polygon
 Khi `polygon.enabled: true` được thiết lập trong config:
