@@ -210,7 +210,7 @@ sahi:
   iou_threshold: 0.5  # Ngưỡng NMS để gộp kết quả từ các slice
 ```
 
-### Tính Năng Vẽ Polygon (New)
+### Tính Năng Vẽ Polygon
 Khi `polygon.enabled: true` được thiết lập trong config:
 1. Khi khởi động, cửa sổ **Vẽ Polygon** sẽ hiện lên với frame đầu tiên của video.
 2. **Thao tác**:
